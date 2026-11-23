@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d1117" id="metaTheme">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="班车">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>班车 · 下一班</title>
+<style>
+:root[data-theme="dark"]{
+  --bg:#0d1117; --card:#161c25; --card2:#1b2430; --line:rgba(255,255,255,.09);
+  --txt:#eef2f7; --dim:#8b97a8; --dim2:#5f6a79; --shadow:0 10px 30px rgba(0,0,0,.35);
+}
+:root[data-theme="light"]{
+  --bg:#f3f6fa; --card:#ffffff; --card2:#eef2f8; --line:rgba(15,23,42,.09);
+  --txt:#0f1729; --dim:#65728a; --dim2:#9aa6b8; --shadow:0 8px 24px rgba(15,23,42,.08);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased;
+  min-height:100dvh;
+  padding:calc(12px + env(safe-area-inset-top)) 14px calc(22px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:520px;margin:0 auto;--accent:#4c8dff;--accent-soft:rgba(76,141,255,.16)}
+.wrap[data-dir="park"]{--accent:#2fd39a;--accent-soft:rgba(47,211,154,.16)}
+
+/* ---------- header ---------- */
+.hd{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:2px 2px 14px}
+.brand{font-size:19px;font-weight:800;letter-spacing:.5px}
+.sub{color:var(--dim);font-size:12.5px;margin-top:4px;font-variant-numeric:tabular-nums}
+.hd-r{display:flex;align-items:center;gap:8px}
+.clock{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+.icon{
+  appearance:none;border:1px solid var(--line);background:var(--card);color:var(--dim);
+  width:36px;height:36px;border-radius:11px;font-size:15px;line-height:1;cursor:pointer;
+}
+.icon:active{transform:scale(.94)}
+
+/* ---------- segmented ---------- */
+.seg{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:15px;padding:5px;margin-bottom:12px}
+.seg button{
+  flex:1;appearance:none;border:0;background:transparent;color:var(--dim);
+  font:inherit;font-size:14.5px;font-weight:700;padding:10px 6px;border-radius:11px;
+  transition:background .18s,color .18s,transform .12s;cursor:pointer;
+}
+.seg button[aria-selected="true"]{background:var(--accent-soft);color:var(--txt)}
+.seg button:active{transform:scale(.985)}
+
+/* ---------- hero ---------- */
+.hero{
+  position:relative;overflow:hidden;border-radius:20px;padding:16px 18px 12px;
+  background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);
+}
+.hero::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(130% 100% at 100% 0%,var(--accent-soft),transparent 62%);
+}
+.route{position:relative;font-size:13px;font-weight:600;color:var(--dim);letter-spacing:.3px}
+.route .arw{color:var(--accent);margin:0 7px;font-weight:800}
+.hr{position:relative;display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:8px 0 5px}
+.dep{display:flex;align-items:baseline;gap:8px;min-width:0}
+.dep .num{font-size:46px;font-weight:800;letter-spacing:-1.5px;font-variant-numeric:tabular-nums;line-height:1.05}
+.dep .cap{font-size:12.5px;color:var(--dim);font-weight:600;white-space:nowrap}
+.cd{text-align:right;min-width:0}
+.cdnum{
+  font-size:26px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;
+  letter-spacing:-.5px;line-height:1.15;
+}
+.cd .cap{font-size:11.5px;color:var(--dim);font-weight:600;margin-top:1px}
+.arr{position:relative;font-size:13px;color:var(--dim);margin-top:2px}
+.arr b{color:var(--txt);font-weight:700}
+.chips{position:relative;display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+.chip{
+  font-size:11.5px;font-weight:600;color:var(--dim);background:var(--card2);
+  border:1px solid var(--line);border-radius:999px;padding:4px 9px;white-space:nowrap;
+}
+.chip.warn{color:#ffb02e;border-color:rgba(255,176,46,.35);background:rgba(255,176,46,.12)}
+.hero[data-urg="soon"] .cdnum{color:#ffb02e}
+.hero[data-urg="urgent"] .cdnum{color:#ff5d5d}
+.hero[data-urg="urgent"] .dep .num{color:#ff5d5d}
+.pulse{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}}
+
+/* 另一方向 */
+.other{
+  position:relative;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  width:100%;margin-top:12px;padding:10px 2px 0;border:0;border-top:1px solid var(--line);
+  background:transparent;color:var(--dim);font:inherit;font-size:12.5px;cursor:pointer;
+}
+.other b{color:var(--txt);font-weight:700;font-variant-numeric:tabular-nums}
+.other .o-r{color:var(--accent);font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
+
+/* ---------- list ---------- */
+.panel{margin-top:16px}
+.ph{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:0 4px 7px}
+.ph span:first-child{font-size:13.5px;font-weight:700;color:var(--dim)}
+.ph .ph-r{font-size:11.5px;color:var(--dim2)}
+.rows{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.row{
+  display:flex;align-items:center;gap:10px;padding:11px 14px;
+  border-bottom:1px solid var(--line);position:relative;
+}
+.row:last-child{border-bottom:0}
+.row .t{font-size:17px;font-weight:750;font-variant-numeric:tabular-nums;min-width:54px;letter-spacing:-.2px}
+.row .to{font-size:12px;color:var(--dim2);flex:1;white-space:nowrap}
+.row .st{font-size:11.5px;font-weight:700;color:var(--dim2);min-width:46px;text-align:right}
+.row.past{opacity:.42}
+.row.past .t{font-weight:600}
+.row.isnext{background:var(--accent-soft)}
+.row.isnext::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+.row.isnext .t{color:var(--accent)}
+.row.isnext .st{color:var(--accent)}
+.nowline{display:flex;align-items:center;height:15px;background:var(--bg)}
+.nowline span{
+  font-size:9.5px;font-weight:800;color:var(--accent);letter-spacing:.8px;
+  padding:0 6px 0 14px;
+}
+.nowline::after{content:"";flex:1;height:1px;margin-right:14px;background:var(--accent);opacity:.4}
+
+/* ---------- 发车提醒卡片 ---------- */
+.alert{
+  position:sticky;top:0;z-index:60;
+  display:flex;align-items:center;gap:12px;
+  margin:0 0 10px;padding:11px 13px;border-radius:16px;
+  background:linear-gradient(100deg,#ffb02e,#ff5d5d);
+  color:#151515;box-shadow:0 10px 24px rgba(255,120,60,.3);
+  animation:drop .26s cubic-bezier(.2,.9,.3,1);
+}
+.alert[hidden]{display:none}
+@keyframes drop{from{transform:translateY(-10px);opacity:0}to{transform:none;opacity:1}}
+.al-t{font-size:15px;font-weight:800;line-height:1.25}
+.al-s{font-size:11.5px;font-weight:700;opacity:.72;margin-top:2px}
+.al-x{
+  margin-left:auto;appearance:none;border:0;border-radius:999px;
+  background:rgba(0,0,0,.17);color:#151515;font:inherit;font-size:12.5px;font-weight:800;
+  padding:9px 13px;cursor:pointer;white-space:nowrap;
+}
+@media (prefers-reduced-motion:reduce){.alert{animation:none}}
+
+/* ---------- footer ---------- */
+.foot{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.ghost{
+  appearance:none;border:1px dashed var(--line);background:transparent;color:var(--dim2);
+  font:inherit;font-size:11.5px;font-weight:600;padding:7px 12px;border-radius:999px;cursor:pointer;
+}
+.ghost[data-on="1"]{color:#ffb02e;border-color:rgba(255,176,46,.4);background:rgba(255,176,46,.08)}
+
+/* ---------- source ---------- */
+.src{margin:14px 2px 0;font-size:12.5px;color:var(--dim)}
+.src summary{cursor:pointer;padding:10px 0;font-weight:700;color:var(--dim);list-style:none;outline:none}
+.src summary::-webkit-details-marker{display:none}
+.src summary::before{content:"▸ ";color:var(--dim2)}
+.src[open] summary::before{content:"▾ "}
+.srcbody{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;line-height:1.7}
+.srcbody h4{margin:12px 0 4px;font-size:12px;color:var(--txt);font-weight:700}
+.srcbody p{margin:0 0 6px}
+.srcbody b{color:var(--txt);font-weight:700}
+.srcbody .note{
+  margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);
+  font-size:11.5px;color:var(--dim2);line-height:1.6;
+}
+.tbl{width:100%;border-collapse:collapse;margin:2px 0 4px;font-variant-numeric:tabular-nums}
+.tbl td{padding:3px 0;font-size:12.5px}
+.tbl td:first-child{width:52%;color:var(--dim)}
+.tbl td:last-child{color:var(--txt);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap" data-dir="east">
+
+  <div class="alert" id="alert" hidden>
+    <div>
+      <div class="al-t" id="alertTitle">还有 5 分钟发车</div>
+      <div class="al-s" id="alertSub"></div>
+    </div>
+    <button class="al-x" id="alertClose">知道了</button>
+  </div>
+
+  <header class="hd">
+    <div>
+      <div class="brand">园区班车</div>
+      <div class="sub" id="sub">—</div>
+    </div>
+    <div class="hd-r">
+      <div class="clock" id="clock">--:--</div>
+      <button class="icon" id="themeBtn" aria-label="切换主题">◐</button>
+    </div>
+  </header>
+
+  <nav class="seg" role="tablist" aria-label="方向">
+    <button role="tab" data-dir="toEast" aria-selected="true">去东区</button>
+    <button role="tab" data-dir="toPark" aria-selected="false">回园区</button>
+  </nav>
+
+  <section class="hero" id="hero" data-urg="">
+    <div class="route" id="route"></div>
+    <div class="hr">
+      <div class="dep">
+        <div class="num" id="depTime">--:--</div>
+        <div class="cap" id="depCap">发车</div>
+      </div>
+      <div class="cd">
+        <div class="cdnum" id="cd">--:--</div>
+        <div class="cap" id="cdCap">距发车</div>
+      </div>
+    </div>
+    <div class="arr" id="arr"></div>
+    <div class="chips" id="chips"></div>
+    <button class="other" id="otherBtn">
+      <span class="o-l" id="otherL">另一方向</span>
+      <span class="o-r" id="otherR">--:--</span>
+    </button>
+  </section>
+
+  <section class="panel">
+    <div class="ph"><span id="listTitle">今日班次</span><span class="ph-r" id="listSub"></span></div>
+    <div class="rows" id="rows"></div>
+  </section>
+
+  <div class="foot">
+    <button class="ghost" id="remindBtn" data-on="0">发车提醒 · 关</button>
+    <button class="ghost" id="holidayBtn" data-on="0">今天按节假日时刻</button>
+  </div>
+
+  <details class="src">
+    <summary>完整时刻表 / 说明</summary>
+    <div class="srcbody" id="srcbody"></div>
+  </details>
+
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= LOGIC START (纯函数，无 DOM，可单独测试) ================= */
+
+/* 太湖路园区班车运行时刻表（2026年11月1日执行） */
+var SCHEDULE = {
+  toEast: {
+    from: '太湖路园区', to: '东区',
+    workday: [
+      { dep:'07:10', arr:'07:30' },
+      { dep:'08:50', arr:'09:10' },
+      { dep:'12:30', arr:'12:50' },
+      { dep:'13:20', arr:'13:40' },
+      { dep:'15:00', arr:'15:20' },
+      { dep:'18:30', arr:'19:00' },
+      { dep:'21:30', arr:'22:00' }
+    ],
+    weekend: [
+      { dep:'09:00', arr:'09:20' },
+      { dep:'13:00', arr:'13:20' },
+      { dep:'18:00', arr:'18:20' },
+      { dep:'21:30', arr:'21:50' }
+    ]
+  },
+  toPark: {
+    from: '东区', to: '太湖路园区',
+    workday: [
+      { dep:'09:00', arr:'09:20' },
+      { dep:'12:30', arr:'12:50' },
+      { dep:'13:30', arr:'13:50' },
+      { dep:'18:40', arr:'19:00' },
+      { dep:'22:10', arr:'22:30' },
+      { dep:'22:50', arr:'23:10' }
+    ],
+    weekend: [
+      { dep:'09:00', arr:'09:20' },
+      { dep:'13:00', arr:'13:20' },
+      { dep:'18:00', arr:'18:20' },
+      { dep:'22:50', arr:'23:10' }
+    ]
+  }
+};
+
+var MIN = 60000;
+var GRACE = 45000;          /* 发车后 45 秒内仍显示为“正在发车” */
+var NEAR_MS = 5 * 60000;    /* 5 分钟内：紧张 */
+var SOON_MS = 15 * 60000;   /* 15 分钟内：准备 */
+
+function pad2(n){ return (n < 10 ? '0' : '') + n; }
+function hhmmToMin(s){ var p = String(s).split(':'); return (+p[0]) * 60 + (+p[1]); }
+function startOfDay(d){ var x = new Date(d.getTime()); x.setHours(0,0,0,0); return x; }
+function addDays(d,n){ var x = new Date(d.getTime()); x.setDate(x.getDate() + n); return x; }
+function isSunday(d){ return d.getDay() === 0; }
+function ymd(d){ return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate()); }
+
+/* 工作日 = 周一至周五；双休及节假日 = 周六、周日，或被手动标记为节假日的那天 */
+function dayKind(date, holiday){
+  if (holiday && ymd(date) === holiday) return 'weekend';
+  var w = date.getDay();
+  return (w === 0 || w === 6) ? 'weekend' : 'workday';
+}
+
+/* 当天实际开行的班次 */
+function scheduleFor(dirId, date, holiday){
+  var dir = SCHEDULE[dirId];
+  if (!dir) return [];
+  var base = dir[dayKind(date, holiday)];
+  var out = [];
+  for (var i = 0; i < base.length; i++){
+    var e = base[i];
+    out.push({ dep:e.dep, arr:e.arr, depMin:hhmmToMin(e.dep), arrMin:hhmmToMin(e.arr) });
+  }
+  return out;
+}
+
+function atMin(dayStart, min){ return new Date(dayStart.getTime() + min * MIN); }
+
+/* 返回 { mode:'today'|'nextday'|'none', list:[...带 when], next, when, day } */
+function computeNext(dirId, now, holiday){
+  var ds = startOfDay(now);
+  var today = scheduleFor(dirId, now, holiday);
+  var items = [];
+  for (var i = 0; i < today.length; i++){
+    var e = today[i];
+    items.push({ dep:e.dep, arr:e.arr, depMin:e.depMin, arrMin:e.arrMin, when: atMin(ds, e.depMin), day: ds });
+  }
+  var t0 = now.getTime() - GRACE;
+  var next = null;
+  for (var j = 0; j < items.length; j++){
+    if (items[j].when.getTime() > t0){ next = items[j]; break; }
+  }
+  if (next) return { mode:'today', dir:dirId, list:items, next:next, when:next.when, day:ds };
+
+  for (var k = 1; k <= 8; k++){
+    var d = addDays(now, k);
+    var l = scheduleFor(dirId, d, holiday);
+    if (!l.length) continue;
+    var d0 = startOfDay(d);
+    var arr2 = [];
+    for (var m = 0; m < l.length; m++){
+      arr2.push({ dep:l[m].dep, arr:l[m].arr, depMin:l[m].depMin, arrMin:l[m].arrMin, when: atMin(d0, l[m].depMin), day: d0 });
+    }
+    return { mode:'nextday', dir:dirId, list:arr2, next:arr2[0], when:arr2[0].when, day:d0, daysAhead:k };
+  }
+  return { mode:'none', dir:dirId, list:[], next:null, when:null, day:null };
+}
+
+/* 秒级倒计时文本：>=1h 显示 h:mm:ss，否则 mm:ss */
+function fmtCountdown(ms){
+  var total = Math.floor(Math.max(0, ms) / 1000);
+  var h = Math.floor(total / 3600);
+  var m = Math.floor((total % 3600) / 60);
+  var s = total % 60;
+  return h > 0 ? (h + ':' + pad2(m) + ':' + pad2(s)) : (pad2(m) + ':' + pad2(s));
+}
+function fmtClock(d){ return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()); }
+function weekdayCN(d){ return ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()]; }
+function isSameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+function dayName(d, now){
+  if (isSameDay(d, now)) return '今天';
+  if (isSameDay(d, addDays(now,1))) return '明天';
+  if (isSameDay(d, addDays(now,2))) return '后天';
+  return weekdayCN(d);
+}
+function fmtDateCN(d){ return (d.getMonth()+1) + '月' + d.getDate() + '日'; }
+
+/* 提醒判定：距离发车 <= leadMin 分钟，且这班车还没提醒过 */
+function reminderState(entry, now, leadMin, firedKey){
+  if (!entry || !entry.when || !(leadMin > 0)) return { due:false };
+  var ms = entry.when.getTime() - now.getTime();
+  if (ms <= 0 || ms > leadMin * MIN) return { due:false };
+  var key = ymd(entry.when) + '|' + entry.dep;
+  if (key === firedKey) return { due:false };
+  return { due:true, key:key, ms:ms };
+}
+
+/* ================= LOGIC END ================= */
+
+var $ = function(id){ return document.getElementById(id); };
+var wrap = $('wrap'), heroEl = $('hero'), routeEl = $('route'), depTimeEl = $('depTime'),
+    depCapEl = $('depCap'), cdEl = $('cd'), cdCapEl = $('cdCap'), arrEl = $('arr'),
+    chipsEl = $('chips'), rowsEl = $('rows'), listTitleEl = $('listTitle'), listSubEl = $('listSub'),
+    subEl = $('sub'), clockEl = $('clock'), themeBtn = $('themeBtn'), metaTheme = $('metaTheme'),
+    srcBody = $('srcbody'), holidayBtn = $('holidayBtn'), remindBtn = $('remindBtn'),
+    alertEl = $('alert'), alertTitle = $('alertTitle'), alertSub = $('alertSub'), alertClose = $('alertClose'),
+    otherBtn = $('otherBtn'), otherL = $('otherL'), otherR = $('otherR');
+
+var state = { dir: read('bus.dir') || 'toEast', theme: read('bus.theme') || 'auto' };
+var holiday = read('bus.holiday') || '';          /* 'YYYY-MM-DD'，表示这一天按节假日时刻 */
+var remindLead = parseInt(read('bus.remind') || '0', 10);
+if (!(remindLead >= 0)) remindLead = 0;           /* 0 = 关闭；3/5/10 = 提前分钟 */
+var firedKey = '';                                /* 已提醒过的班次，避免重复 */
+var timer = null;
+var last = null;
+var otherNext = null;
+
+function read(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+function write(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+
+/* ---------- 主题 ---------- */
+function applyTheme(){
+  var pref = state.theme;
+  var light = false;
+  try { light = window.matchMedia('(prefers-color-scheme: light)').matches; } catch(e){}
+  var resolved = pref === 'auto' ? (light ? 'light' : 'dark') : pref;
+  document.documentElement.dataset.theme = resolved;
+  themeBtn.textContent = pref === 'auto' ? '◐' : (pref === 'light' ? '☀' : '☾');
+  themeBtn.title = '主题：' + (pref === 'auto' ? '跟随系统' : pref === 'light' ? '浅色' : '深色');
+  metaTheme.setAttribute('content', resolved === 'light' ? '#f3f6fa' : '#0d1117');
+}
+
+function kindLabel(d){
+  return dayKind(d, holiday) === 'weekend' ? '双休/节假日时刻' : '工作日时刻';
+}
+
+/* ---------- 顶部副标题 ---------- */
+function renderSub(now){
+  var kind;
+  if (holiday && holiday === ymd(now)) kind = '节假日';
+  else kind = dayKind(now, holiday) === 'weekend' ? '双休' : '工作日';
+  subEl.textContent = fmtDateCN(now) + ' ' + weekdayCN(now) + ' · ' + kind;
+}
+
+/* ---------- 主体渲染 ---------- */
+function render(now){
+  var r = computeNext(state.dir, now, holiday);
+  last = r;
+  var dir = SCHEDULE[state.dir];
+  wrap.dataset.dir = (state.dir === 'toEast') ? 'east' : 'park';
+
+  routeEl.innerHTML = dir.from + '<span class="arw">→</span>' + dir.to;
+  renderSub(now);
+
+  var chips = [];
+  var nextIdx = -1;
+
+  if (r.mode === 'today'){
+    for (var i = 0; i < r.list.length; i++){
+      if (r.list[i].when.getTime() === r.next.when.getTime()){ nextIdx = i; break; }
+    }
+    depTimeEl.textContent = r.next.dep;
+    depCapEl.textContent = '发车';
+    arrEl.innerHTML = '到达约 <b>' + r.next.arr + '</b> · 今日第 <b>' + (nextIdx + 1) + '</b> / ' + r.list.length + ' 班';
+    chips.push({ t:'首班 ' + r.list[0].dep });
+    chips.push({ t:'末班 ' + r.list[r.list.length - 1].dep });
+    if (nextIdx === r.list.length - 1) chips.push({ t:'今日末班' });
+
+    listTitleEl.textContent = '今日全部班次';
+    listSubEl.textContent = kindLabel(now);
+  } else if (r.mode === 'nextday'){
+    var dn = dayName(r.day, now);
+    var todayN = scheduleFor(state.dir, now, holiday).length;
+    depTimeEl.textContent = r.next.dep;
+    depCapEl.textContent = dn + '首班';
+    arrEl.innerHTML = '今日已收班 · <b>' + dn + '（' + weekdayCN(r.day) + '）</b>首班 ' + r.next.dep;
+    chips.push({ t:'今日共 ' + todayN + ' 班' });
+    chips.push({ t:dn + '共 ' + r.list.length + ' 班' });
+    listTitleEl.textContent = dn + '班次';
+    listSubEl.textContent = kindLabel(r.day);
+    nextIdx = 0;
+  } else {
+    depTimeEl.textContent = '—';
+    depCapEl.textContent = '暂无';
+    arrEl.textContent = '近期没有查到班次';
+    listTitleEl.textContent = '班次';
+    listSubEl.textContent = '';
+  }
+
+  var ch = '';
+  for (var c = 0; c < chips.length; c++){
+    ch += '<span class="chip' + (chips[c].warn ? ' warn' : '') + '">' + chips[c].t + '</span>';
+  }
+  chipsEl.innerHTML = ch;
+
+  /* 列表 */
+  var html = '';
+  for (var k = 0; k < r.list.length; k++){
+    var e = r.list[k];
+    var past = (r.mode === 'today') && (e.when.getTime() + GRACE < now.getTime());
+    var isNext = (k === nextIdx);
+    if (isNext && k > 0) html += '<div class="nowline"><span>现在</span></div>';
+    var st = isNext ? (r.mode === 'today' ? '下一班' : '首班') : (past ? '已发' : '');
+    html += '<div class="row' + (past ? ' past' : '') + (isNext ? ' isnext' : '') + '">' +
+              '<span class="t">' + e.dep + '</span>' +
+              '<span class="to">到达 ' + e.arr + '</span>' +
+              '<span class="st">' + st + '</span>' +
+            '</div>';
+  }
+  rowsEl.innerHTML = html;
+
+  /* 另一方向 */
+  var otherDir = state.dir === 'toEast' ? 'toPark' : 'toEast';
+  var o = computeNext(otherDir, now, holiday);
+  otherNext = o;
+  var oname = otherDir === 'toEast' ? '去东区' : '回园区';
+  otherL.textContent = oname + ' · 下一班';
+  if (o.mode === 'today') otherR.textContent = o.next.dep;
+  else if (o.mode === 'nextday') otherR.textContent = dayName(o.day, now) + ' ' + o.next.dep;
+  else otherR.textContent = '—';
+
+  /* 节假日按钮 */
+  var isWk = dayKind(now, '') === 'weekend';
+  holidayBtn.style.display = isWk ? 'none' : '';
+  var on = holiday === ymd(now);
+  holidayBtn.dataset.on = on ? '1' : '0';
+  holidayBtn.textContent = on ? '已按节假日时刻 · 点此恢复工作日' : '今天按节假日时刻';
+
+  updateCountdown(now);
+}
+
+/* ---------- 发车提醒 ---------- */
+var ac = null;
+function unlockAudio(){
+  try {
+    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === 'suspended') ac.resume();
+  } catch(e){}
+}
+function beep(n){
+  if (!ac) return;
+  try {
+    for (var i = 0; i < n; i++){
+      (function(i){
+        setTimeout(function(){
+          try {
+            var t = ac.currentTime;
+            var o = ac.createOscillator(), g = ac.createGain();
+            o.type = 'sine';
+            o.frequency.setValueAtTime(880, t);
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(0.2, t + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+            o.connect(g); g.connect(ac.destination);
+            o.start(t); o.stop(t + 0.3);
+          } catch(e){}
+        }, i * 420);
+      })(i);
+    }
+  } catch(e){}
+}
+
+function showAlert(ms){
+  var dir = SCHEDULE[state.dir];
+  alertSub.textContent = last.next.dep + ' · ' + dir.from + ' → ' + dir.to;
+  alertTitle.textContent = '还有 ' + fmtCountdown(ms) + ' 发车';
+  alertEl.hidden = false;
+  beep(3);
+  try { if (navigator.vibrate) navigator.vibrate([220,120,220,120,220]); } catch(e){}
+}
+function hideAlert(){
+  if (!alertEl.hidden) alertEl.hidden = true;
+}
+function checkReminder(now, ms){
+  if (!remindLead || !last || last.mode !== 'today'){ return; }
+  if (ms <= 0){ if (!alertEl.hidden) hideAlert(); return; }
+  var st = reminderState(last.next, now, remindLead, firedKey);
+  if (st.due){
+    firedKey = st.key;
+    showAlert(st.ms);
+  } else if (!alertEl.hidden && ms > 0){
+    alertTitle.textContent = '还有 ' + fmtCountdown(ms) + ' 发车';
+  }
+}
+function renderRemindBtn(){
+  remindBtn.textContent = remindLead ? ('发车提醒 · 提前 ' + remindLead + ' 分') : '发车提醒 · 关';
+  remindBtn.dataset.on = remindLead ? '1' : '0';
+}
+
+/* ---------- 每秒刷新 ---------- */
+function updateCountdown(now){
+  if (!last || !last.when){ cdEl.textContent = '--:--'; return; }
+  var ms = last.when.getTime() - now.getTime();
+  cdEl.textContent = fmtCountdown(ms);
+  cdCapEl.textContent = ms <= 0 ? '正在发车' : '距发车';
+
+  var urg = '';
+  if (ms <= NEAR_MS) urg = 'urgent';
+  else if (ms <= SOON_MS) urg = 'soon';
+  heroEl.dataset.urg = urg;
+  cdEl.classList.toggle('pulse', urg === 'urgent');
+
+  var title;
+  if (last.mode === 'today') title = '下一班 ' + last.next.dep + ' · ' + fmtCountdown(ms);
+  else if (last.mode === 'nextday') title = dayName(last.day, now) + ' ' + last.next.dep + ' · ' + fmtCountdown(ms);
+  else title = '班车 · 下一班';
+  if (document.title !== title) document.title = title;
+
+  checkReminder(now, ms);
+}
+
+function tick(){
+  var now = new Date();
+  clockEl.textContent = fmtClock(now);
+  var r = computeNext(state.dir, now, holiday);
+  var changed = !last ||
+                r.mode !== last.mode ||
+                (r.when && last.when && r.when.getTime() !== last.when.getTime()) ||
+                (!r.when !== !last.when) ||
+                (r.day && last.day && !isSameDay(r.day, last.day));
+  if (changed) render(now);
+  else { last = r; renderSub(now); updateCountdown(now); }
+}
+
+/* ---------- 时刻表说明 ---------- */
+function buildSource(){
+  function table(dirId, key){
+    var arr = SCHEDULE[dirId][key];
+    var h = '<table class="tbl">';
+    for (var i = 0; i < arr.length; i++){
+      h += '<tr><td>' + arr[i].dep + '</td><td>到达 ' + arr[i].arr + '</td></tr>';
+    }
+    return h + '</table>';
+  }
+  var h = '';
+  h += '<h4>工作日（周一至周五）</h4>';
+  h += '<p><b>太湖路园区 → 东区</b></p>' + table('toEast','workday');
+  h += '<p><b>东区 → 太湖路园区</b></p>' + table('toPark','workday');
+  h += '<h4>双休及节假日</h4>';
+  h += '<p><b>太湖路园区 → 东区</b></p>' + table('toEast','weekend');
+  h += '<p><b>东区 → 太湖路园区</b></p>' + table('toPark','weekend');
+  h += '<p class="note">来源：太湖路园区班车运行时刻表（2026年11月1日执行）。' +
+       '左侧为发车时间，右侧为到达时间。遇法定节假日请点上方「今天按节假日时刻」。' +
+       '乘车提醒：严禁携带易燃、易爆、易碎、有毒、有害等危险品乘车。</p>';
+  srcBody.innerHTML = h;
+}
+
+/* ---------- 事件 ---------- */
+var tabs = document.querySelectorAll('.seg button');
+for (var i = 0; i < tabs.length; i++){
+  tabs[i].addEventListener('click', function(){
+    unlockAudio();
+    var d = this.getAttribute('data-dir');
+    if (d === state.dir) return;
+    hideAlert();
+    state.dir = d;
+    write('bus.dir', d);
+    for (var j = 0; j < tabs.length; j++){
+      tabs[j].setAttribute('aria-selected', String(tabs[j] === this));
+    }
+    render(new Date());
+    if (navigator.vibrate) { try { navigator.vibrate(8); } catch(e){} }
+  });
+}
+
+otherBtn.addEventListener('click', function(){
+  unlockAudio();
+  hideAlert();
+  var d = state.dir === 'toEast' ? 'toPark' : 'toEast';
+  state.dir = d;
+  write('bus.dir', d);
+  for (var j = 0; j < tabs.length; j++){
+    tabs[j].setAttribute('aria-selected', String(tabs[j].getAttribute('data-dir') === d));
+  }
+  render(new Date());
+});
+
+holidayBtn.addEventListener('click', function(){
+  var now = new Date();
+  holiday = (holiday === ymd(now)) ? '' : ymd(now);
+  write('bus.holiday', holiday);
+  render(now);
+});
+
+themeBtn.addEventListener('click', function(){
+  unlockAudio();
+  state.theme = state.theme === 'auto' ? 'light' : state.theme === 'light' ? 'dark' : 'auto';
+  write('bus.theme', state.theme);
+  applyTheme();
+});
+
+remindBtn.addEventListener('click', function(){
+  unlockAudio();
+  var seq = [0, 3, 5, 10];
+  var idx = seq.indexOf(remindLead);
+  remindLead = seq[(idx + 1) % seq.length];
+  write('bus.remind', String(remindLead));
+  firedKey = '';
+  hideAlert();
+  renderRemindBtn();
+  tick();
+});
+
+alertClose.addEventListener('click', function(){ hideAlert(); });
+
+document.addEventListener('visibilitychange', function(){
+  if (document.hidden){
+    if (timer){ clearInterval(timer); timer = null; }   /* 切到后台就停掉计时，省电 */
+  } else {
+    tick();
+    if (!timer) timer = setInterval(tick, 1000);
+  }
+});
+try {
+  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(){
+    if (state.theme === 'auto') applyTheme();
+  });
+} catch(e){}
+
+/* ---------- 启动 ---------- */
+applyTheme();
+for (var t = 0; t < tabs.length; t++){
+  tabs[t].setAttribute('aria-selected', String(tabs[t].getAttribute('data-dir') === state.dir));
+}
+buildSource();
+renderRemindBtn();
+render(new Date());
+timer = setInterval(tick, 1000);
+
+})();
+</script>
+</body>
+</html>
